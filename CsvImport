@@ -1,0 +1,82 @@
+<?php
+
+class CsvImport
+{
+    public $mime = array(
+        'text/plain',
+        'text/csv'
+    );
+    private $file = null;
+    private $columns;
+    private $line;
+
+    public function __construct($FILE, $mime = null)
+    {
+        $this->checkMime($FILE, $mime);
+        $this->upload($FILE);
+        $this->getColumnNames();
+    }
+
+    public function get($name)
+    {
+        if (!array_key_exists($name, $this->columns) || !array_key_exists($this->columns[$name], $this->line)) {
+            return '';
+        }
+        return $this->line[$this->columns[$name]];
+    }
+
+    public function set($name, $value)
+    {
+        if (!array_key_exists($name, $this->columns)) {
+            throw new CHttpException(500, "Ключа с именем $name нет");
+        }
+        $this->line[$this->columns[$name]] = $value;
+    }
+
+    private function upload($FILE, $path = null)
+    {
+        $this->file = fopen($FILE['tmp_name'], 'r+');
+        if (!$this->file) {
+            throw new CHttpException(400, 'Файл не загружен');
+        }
+
+        if ($path !== null) {
+            if (!file_exists($path)) {
+                throw new CHttpException(500, 'Не удалось сохранить в указанную директорию');
+            }
+
+            move_uploaded_file($FILE['tmp_name'], $path);
+        }
+    }
+
+    private function getColumnNames()
+    {
+        $this->getLine();
+        $this->columns = array_flip($this->line);
+    }
+
+    public function getLine()
+    {
+        $line = fgetcsv($this->file);
+        $line = TextHelper::mb_trim($line);
+
+        if (count($line) == 1) {
+            return false;
+        }
+        $this->line = $line;
+        return true;
+    }
+
+    private function checkMime($FILE, $mime)
+    {
+        if ($mime === null) {
+            $mime = $this->mime;
+        }
+        $info = new finfo(FILEINFO_MIME_TYPE);
+
+        if (!in_array($info->file($FILE['tmp_name']), $mime)) {
+            throw new CHttpException(400, 'Некорректный тип файла');
+        }
+        return true;
+    }
+}
