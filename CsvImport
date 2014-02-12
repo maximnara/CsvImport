@@ -2,81 +2,100 @@
 
 class CsvImport
 {
-    public $mime = array(
-        'text/plain',
-        'text/csv'
-    );
-    private $file = null;
-    private $columns;
-    private $line;
+	public $mime = array(
+		'text/plain',
+		'text/csv'
+	);
+	private $file = null;
+	private $columns;
+	private $line;
+	private $attributeMap = null;
 
-    public function __construct($FILE, $mime = null)
-    {
-        $this->checkMime($FILE, $mime);
-        $this->upload($FILE);
-        $this->getColumnNames();
-    }
+	public function __construct($FILE, $path = null, $mime = null)
+	{
+		$this->checkMime($FILE, $mime);
+		$this->upload($FILE, $path);
+		$this->getColumnNames();
+	}
 
-    public function get($name)
-    {
-        if (!array_key_exists($name, $this->columns) || !array_key_exists($this->columns[$name], $this->line)) {
-            return '';
-        }
-        return $this->line[$this->columns[$name]];
-    }
+	public function get($name)
+	{
+		if (!array_key_exists($name, $this->columns) || !array_key_exists($this->columns[$name], $this->line)) {
+			return '';
+		}
+		return $this->line[$this->columns[$name]];
+	}
 
-    public function set($name, $value)
-    {
-        if (!array_key_exists($name, $this->columns)) {
-            throw new CHttpException(500, "Ключа с именем $name нет");
-        }
-        $this->line[$this->columns[$name]] = $value;
-    }
+	public function getAll()
+	{
+		$data = array();
+		foreach ($this->columns as $name => $value){
+			if ($this->attributeMap !== null && array_key_exists($name, $this->attributeMap)){
+				$data[$this->attributeMap[$name]] = $this->get($name);
+				continue;
+			}
+			$data[$name] = $this->get($name);
+		}
+		return $data;
+	}
 
-    private function upload($FILE, $path = null)
-    {
-        $this->file = fopen($FILE['tmp_name'], 'r+');
-        if (!$this->file) {
-            throw new CHttpException(400, 'Файл не загружен');
-        }
+	public function set($name, $value)
+	{
+		if (!array_key_exists($name, $this->columns)) {
+			throw new CHttpException(500, "Ключа с именем $name нет");
+		}
+		$this->line[$this->columns[$name]] = $value;
+	}
 
-        if ($path !== null) {
-            if (!file_exists($path)) {
-                throw new CHttpException(500, 'Не удалось сохранить в указанную директорию');
-            }
+	public function setAttributeMap($map)
+	{
+		$this->attributeMap = $map;
+	}
 
-            move_uploaded_file($FILE['tmp_name'], $path);
-        }
-    }
+	private function upload($FILE, $path = null)
+	{
+		$this->file = fopen($FILE['tmp_name'], 'r+');
+		if (!$this->file) {
+			throw new CHttpException(400, 'Файл не загружен');
+		}
 
-    private function getColumnNames()
-    {
-        $this->getLine();
-        $this->columns = array_flip($this->line);
-    }
+		if ($path !== null) {
+			if (!file_exists($path)) {
+				throw new CHttpException(500, 'Не удалось сохранить в указанную директорию');
+			}
 
-    public function getLine()
-    {
-        $line = fgetcsv($this->file);
-        $line = TextHelper::mb_trim($line);
+			move_uploaded_file($FILE['tmp_name'], $path);
+		}
+	}
 
-        if (count($line) == 1) {
-            return false;
-        }
-        $this->line = $line;
-        return true;
-    }
+	private function getColumnNames()
+	{
+		$this->getLine();
+		$this->columns = array_flip($this->line);
+	}
 
-    private function checkMime($FILE, $mime)
-    {
-        if ($mime === null) {
-            $mime = $this->mime;
-        }
-        $info = new finfo(FILEINFO_MIME_TYPE);
+	public function getLine()
+	{
+		$line = fgetcsv($this->file);
+		$line = TextHelper::mb_trim($line);
 
-        if (!in_array($info->file($FILE['tmp_name']), $mime)) {
-            throw new CHttpException(400, 'Некорректный тип файла');
-        }
-        return true;
-    }
+		if (count($line) == 1) {
+			return false;
+		}
+		$this->line = $line;
+		return true;
+	}
+
+	private function checkMime($FILE, $mime)
+	{
+		if ($mime === null) {
+			$mime = $this->mime;
+		}
+		$info = new finfo(FILEINFO_MIME_TYPE);
+
+		if (!in_array($info->file($FILE['tmp_name']), $mime)) {
+			throw new CHttpException(400, 'Некорректный тип файла');
+		}
+		return true;
+	}
 }
