@@ -21,7 +21,7 @@ $csv->setAttributeMap(array(
 ```
 Yii::import('yopolis.components.CsvImport');
 
-$csv = new CsvImport($files['file']);
+$csv = new CsvImport($_FILES['file']);
 $csv->setAttributeMap(array(
   	'Name' => 'first_name',
   	'Currency' => 'currency',
